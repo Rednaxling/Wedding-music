@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#241726">
+<meta name="apple-mobile-web-app-title" content="Cues">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" href="icon-192.png">
+<title>Music cues</title>
+<style>
+  :root{
+    --ink:#241726;
+    --ink-2:#31203a;
+    --ink-3:#3d2a47;
+    --blush:#efe3e6;
+    --muted:#a58fa8;
+    --brass:#d9b25c;
+    --brass-dim:#8a6f3a;
+    --ok:#7fbf9a;
+    --pad:20px;
+    --serif: ui-serif, "New York", Iowan Old Style, Palatino, Georgia, serif;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, system-ui, sans-serif;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;padding:0}
+  body{
+    background:var(--ink);
+    color:var(--blush);
+    font-family:var(--sans);
+    font-size:17px;
+    line-height:1.45;
+    padding:max(14px, env(safe-area-inset-top)) var(--pad) calc(120px + env(safe-area-inset-bottom));
+    -webkit-text-size-adjust:100%;
+  }
+  h1,h2,h3{margin:0;font-weight:500}
+  button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+  input,select,textarea{font:inherit}
+  :focus-visible{outline:2px solid var(--brass);outline-offset:3px;border-radius:4px}
+
+  /* ---------- header ---------- */
+  .top{display:flex;align-items:baseline;justify-content:space-between;gap:12px;padding-bottom:18px}
+  .title{font-family:var(--serif);font-size:26px;letter-spacing:.01em;line-height:1.15}
+  .eyebrow{
+    font-size:11px;letter-spacing:.18em;text-transform:uppercase;
+    color:var(--muted);display:block;margin-bottom:6px
+  }
+  .linkbtn{font-size:13px;letter-spacing:.1em;text-transform:uppercase;color:var(--brass);padding:6px 0;white-space:nowrap}
+
+  /* ---------- cue list ---------- */
+  .cues{display:flex;flex-direction:column;gap:10px}
+  .cue{
+    border:1px solid var(--ink-3);
+    border-radius:14px;
+    padding:14px 16px;
+    background:linear-gradient(180deg,var(--ink-2),var(--ink));
+    transition:opacity .25s ease, border-color .25s ease;
+  }
+  .cue .row{display:flex;align-items:center;gap:12px}
+  .num{
+    font-family:var(--serif);font-size:15px;color:var(--brass-dim);
+    min-width:22px;font-variant-numeric:tabular-nums
+  }
+  .name{font-family:var(--serif);font-size:19px;flex:1}
+  .tag{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+  .cue.done{opacity:.4}
+  .cue.done .name{text-decoration:line-through;text-decoration-color:var(--brass-dim)}
+  .cue.pending{opacity:.62}
+
+  /* the one cue that matters right now */
+  .cue.current{
+    border-color:var(--brass);
+    padding:22px 20px 20px;
+    background:linear-gradient(180deg,#3a2543,var(--ink-2));
+    box-shadow:0 0 0 1px rgba(217,178,92,.25), 0 18px 40px -22px #000;
+  }
+  .cue.current .name{font-size:27px;line-height:1.2}
+  .now{
+    font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--brass);
+    display:block;margin-bottom:10px
+  }
+  .when{
+    font-family:var(--serif);font-style:italic;font-size:18px;
+    color:var(--blush);margin:14px 0 0;padding-left:14px;
+    border-left:2px solid var(--brass-dim)
+  }
+  .go{
+    display:block;width:100%;margin-top:18px;padding:19px 16px;
+    background:var(--brass);color:#241726;border-radius:11px;
+    font-weight:600;font-size:19px;letter-spacing:.01em;text-align:center;
+  }
+  .go:active{transform:scale(.985)}
+  .vol{
+    display:flex;align-items:center;justify-content:space-between;gap:10px;
+    margin-top:16px;padding:12px 14px;border-radius:10px;
+    background:rgba(217,178,92,.09);border:1px solid rgba(217,178,92,.25)
+  }
+  .vol .lab{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--brass)}
+  .vol .val{font-family:var(--serif);font-size:24px;font-variant-numeric:tabular-nums}
+  .hint{font-size:13px;color:var(--muted);margin-top:12px}
+  .allplayed{text-align:center;padding:34px 10px;color:var(--muted)}
+  .allplayed .big{font-family:var(--serif);font-size:24px;color:var(--blush);display:block;margin-bottom:8px}
+
+  /* ---------- bottom bar ---------- */
+  .bar{
+    position:fixed;left:0;right:0;bottom:0;
+    display:flex;gap:8px;align-items:center;justify-content:space-between;
+    padding:12px var(--pad) calc(12px + env(safe-area-inset-bottom));
+    background:linear-gradient(180deg,rgba(36,23,38,0),var(--ink) 34%);
+  }
+  .bar button{
+    flex:1;padding:13px 8px;border:1px solid var(--ink-3);border-radius:10px;
+    font-size:13px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);
+    background:var(--ink-2);text-align:center
+  }
+  .bar button.on{color:var(--ink);background:var(--brass);border-color:var(--brass);font-weight:600}
+
+  /* ---------- settings ---------- */
+  .hidden{display:none !important}
+  .field{margin-bottom:16px}
+  .field label{display:block;font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
+  .field input, .field select, .field textarea{
+    width:100%;padding:12px 13px;border-radius:9px;
+    background:var(--ink);border:1px solid var(--ink-3);color:var(--blush)
+  }
+  .field textarea{min-height:64px;resize:vertical;font-family:var(--serif);font-style:italic}
+  .field .note{font-size:12.5px;color:var(--muted);margin-top:6px;line-height:1.4}
+  .card{border:1px solid var(--ink-3);border-radius:14px;padding:16px;margin-bottom:14px;background:var(--ink-2)}
+  .cardtop{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+  .cardtop .n{font-family:var(--serif);font-size:15px;color:var(--brass-dim)}
+  .tools{display:flex;gap:4px}
+  .tools button{padding:7px 11px;border:1px solid var(--ink-3);border-radius:8px;font-size:14px;color:var(--muted)}
+  .two{display:flex;gap:10px}
+  .two > *{flex:1}
+  .wide{
+    display:block;width:100%;padding:15px;border-radius:11px;text-align:center;
+    border:1px dashed var(--ink-3);color:var(--muted);font-size:14px;margin-bottom:14px
+  }
+  .save{
+    display:block;width:100%;padding:17px;border-radius:11px;text-align:center;
+    background:var(--brass);color:var(--ink);font-weight:600;font-size:17px
+  }
+  .sechead{font-family:var(--serif);font-size:21px;margin:26px 0 12px}
+  .toast{
+    position:fixed;left:50%;bottom:96px;transform:translateX(-50%);
+    background:var(--blush);color:var(--ink);padding:11px 18px;border-radius:999px;
+    font-size:14px;font-weight:500;opacity:0;pointer-events:none;transition:opacity .2s;z-index:9
+  }
+  .toast.show{opacity:1}
+  details{border-top:1px solid var(--ink-3);padding:14px 0}
+  summary{list-style:none;cursor:pointer;font-size:13px;letter-spacing:.1em;text-transform:uppercase;color:var(--brass)}
+  summary::-webkit-details-marker{display:none}
+  details p, details li{font-size:14.5px;color:#d6c6d3;line-height:1.55}
+  details ol{padding-left:20px}
+  code{font-size:13px;background:var(--ink);padding:2px 6px;border-radius:5px;color:var(--brass)}
+  @media (prefers-reduced-motion: reduce){*{transition:none !important}}
+</style>
+</head>
+<body>
+
+<!-- ============ RUN VIEW ============ -->
+<main id="run">
+  <div class="top">
+    <div>
+      <span class="eyebrow">Order of music</span>
+      <h1 class="title" id="runTitle">Our wedding</h1>
+    </div>
+    <button class="linkbtn" onclick="showSettings()">Edit</button>
+  </div>
+  <div class="cues" id="cueList"></div>
+</main>
+
+<!-- ============ SETTINGS VIEW ============ -->
+<main id="settings" class="hidden">
+  <div class="top">
+    <div>
+      <span class="eyebrow">Set up</span>
+      <h1 class="title">Cues &amp; volumes</h1>
+    </div>
+    <button class="linkbtn" onclick="showRun()">Done</button>
+  </div>
+
+  <div class="field">
+    <label for="titleIn">Heading</label>
+    <input id="titleIn" type="text" placeholder="Anna &amp; Tom">
+  </div>
+  <div class="field">
+    <label for="shortcutIn">Volume shortcut name</label>
+    <input id="shortcutIn" type="text" placeholder="Wedding Cue">
+    <p class="note">The Shortcut that sets the volume and opens the link. Leave blank if you'd rather set the volume by hand. Setup steps are at the bottom of this page.</p>
+  </div>
+
+  <h2 class="sechead">Cues</h2>
+  <div id="cueEditors"></div>
+  <button class="wide" onclick="addCue()">+ Add a cue</button>
+
+  <button class="save" onclick="saveConfig()">Save</button>
+  <p class="note" style="text-align:center;margin-top:10px">Saving updates this page's address. Add it to your Home Screen <em>after</em> saving so the settings come with it.</p>
+  <p class="note" style="text-align:center;margin-top:14px" id="offlineState">Checking whether the app is stored on this phone…</p>
+
+  <h2 class="sechead">How to set it up</h2>
+
+  <details>
+    <summary>Getting the Spotify links</summary>
+    <ol>
+      <li>In Spotify, tap the ••• on a song or playlist → Share → Copy link.</li>
+      <li>Paste it into the Link box above. It gets converted so it opens the Spotify app rather than the website.</li>
+      <li>For the exit playlist, copy the link to the <em>first song</em>, not the playlist, then turn on shuffle-off and let it run on.</li>
+    </ol>
+  </details>
+
+  <details>
+    <summary>The volume shortcut (one-time, 2 minutes)</summary>
+    <ol>
+      <li>Open Shortcuts → + → name it <code>Wedding Cue</code>.</li>
+      <li>Add <strong>Split Text</strong>. Set its input to Shortcut Input, and set Separator to Custom → <code>|</code></li>
+      <li>Add <strong>Set Volume</strong>. Tap the percentage, then insert the variable <em>Split Text</em> → Get Item at Index → 1.</li>
+      <li>Add <strong>Open URLs</strong>. Insert the variable <em>Split Text</em> → Get Item at Index → 2.</li>
+      <li>In the shortcut's settings, allow it to run from other apps.</li>
+    </ol>
+    <p>If your iOS won't let you put a variable in Set Volume, use the fallback instead: make a separate small shortcut per cue (Set Volume → Open URLs), and in the cue's Mode above choose "Run a named shortcut".</p>
+  </details>
+
+  <details>
+    <summary>The song that isn't on Spotify</summary>
+    <ol>
+      <li>Put the audio file in the Files app, under On My iPhone so it needs no signal.</li>
+      <li>New shortcut, named e.g. <code>Hymn Two</code>: add <strong>Set Volume</strong>, then <strong>File</strong> (tap it and browse to the song), then <strong>Play Sound</strong>.</li>
+      <li>In Play Sound, tap the Sound File field and choose the magic variable <em>File</em> from the step above.</li>
+      <li>Set this cue's Mode to "Run a named shortcut" and put the shortcut's name in the Link box.</li>
+    </ol>
+    <p>Once it starts, stopping it early is awkward, so let this one play to the end.</p>
+  </details>
+
+  <details>
+    <summary>Putting it on the Home Screen</summary>
+    <ol>
+      <li>Finish your settings above and tap Save.</li>
+      <li>In Safari, tap the share button → Add to Home Screen.</li>
+      <li>Open it once from the new icon while you still have wifi. That stores the whole app on the phone.</li>
+      <li>Turn on Airplane Mode and open it again. If it still works, it will work at the venue.</li>
+    </ol>
+    <p>If you change the settings later, save and then add it to the Home Screen again — the icon remembers the settings from the moment it was added.</p>
+  </details>
+
+  <details>
+    <summary>Before the ceremony</summary>
+    <ol>
+      <li>Settings → Display → Auto-Lock → Never.</li>
+      <li>Turn on Do Not Disturb and lock the screen rotation.</li>
+      <li>Download every Spotify track for offline play, in case the venue has no signal.</li>
+      <li>Pair the Bluetooth speaker and play something quietly during the waiting playlist so it can't fall asleep before the exit.</li>
+      <li>Run through all cues once with Rehearse on, with the actual speaker in the actual room.</li>
+    </ol>
+  </details>
+</main>
+
+<div class="bar" id="bottomBar">
+  <button id="rehearseBtn" onclick="toggleRehearse()">Rehearse: off</button>
+  <button onclick="undo()">Back a cue</button>
+  <button onclick="resetProgress()">Start over</button>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ---------------- default configuration ---------------- */
+const DEFAULT = {
+  t: "Our wedding",
+  s: "Wedding Cue",
+  c: [
+    {n:"Waiting music",        w:"Start as soon as the doors open and guests begin arriving.", u:"", v:25, m:"v"},
+    {n:"Entrance",             w:"Start when the registrar nods. Let it play until we reach the front.", u:"", v:60, m:"v"},
+    {n:"First hymn",           w:"Start after the welcome, once everyone is standing.", u:"", v:70, m:"v"},
+    {n:"Second hymn",          w:"Start after the readings, once everyone is standing.", u:"", v:70, m:"s"},
+    {n:"Exit",                 w:"Start the moment we kiss, and let the playlist run on through the photos.", u:"", v:65, m:"v"}
+  ]
+};
+
+let cfg = loadConfig();
+let done = 0;
+let rehearse = false;
+
+/* ---------------- config in the address bar ---------------- */
+function encode(o){
+  const bytes = new TextEncoder().encode(JSON.stringify(o));
+  let bin = ""; bytes.forEach(b => bin += String.fromCharCode(b));
+  return btoa(bin).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");
+}
+function decode(s){
+  s = s.replace(/-/g,"+").replace(/_/g,"/");
+  const bin = atob(s);
+  const bytes = Uint8Array.from(bin, ch => ch.charCodeAt(0));
+  return JSON.parse(new TextDecoder().decode(bytes));
+}
+function loadConfig(){
+  const h = location.hash.slice(1);
+  if(h){
+    try{
+      const o = decode(h);
+      if(o && Array.isArray(o.c)) return o;
+    }catch(e){ /* fall through to defaults */ }
+  }
+  return JSON.parse(JSON.stringify(DEFAULT));
+}
+
+/* ---------------- links ---------------- */
+function toAppLink(raw){
+  const s = (raw || "").trim();
+  if(!s) return "";
+  const m = s.match(/open\.spotify\.com\/(?:intl-[a-z]{2}\/)?(track|playlist|album|artist|episode|show)\/([A-Za-z0-9]+)/);
+  if(m) return "spotify:" + m[1] + ":" + m[2];
+  return s;
+}
+function cueTarget(cue){
+  const vol = Math.max(0, Math.min(100, parseInt(cue.v, 10) || 0));
+  if(cue.m === "s"){
+    return "shortcuts://x-callback-url/run-shortcut?name=" + encodeURIComponent((cue.u||"").trim());
+  }
+  const link = toAppLink(cue.u);
+  if(!link) return "";
+  if(cue.m === "v" && (cfg.s||"").trim()){
+    return "shortcuts://x-callback-url/run-shortcut?name=" + encodeURIComponent(cfg.s.trim())
+         + "&input=text&text=" + encodeURIComponent(vol + "|" + link);
+  }
+  return link;
+}
+function usesShortcutVolume(cue){
+  return cue.m === "v" && !!(cfg.s||"").trim() && !!toAppLink(cue.u);
+}
+
+/* ---------------- run view ---------------- */
+function renderRun(){
+  document.getElementById("runTitle").textContent = cfg.t || "Our wedding";
+  const list = document.getElementById("cueList");
+  list.innerHTML = "";
+
+  if(done >= cfg.c.length && cfg.c.length){
+    const d = document.createElement("div");
+    d.className = "allplayed";
+    d.innerHTML = '<span class="big">That\u2019s all of it.</span>Every cue has been played. Thank you for doing this.';
+    list.appendChild(d);
+  }
+
+  cfg.c.forEach((cue, i) => {
+    const state = i < done ? "done" : (i === done ? "current" : "pending");
+    const el = document.createElement("section");
+    el.className = "cue " + state;
+
+    if(state === "current"){
+      const target = cueTarget(cue);
+      const label = cue.m === "s" ? "Play" : "Open in Spotify";
+      el.innerHTML =
+        '<span class="now">Up next</span>' +
+        '<div class="row"><span class="num">' + (i+1) + '</span><h2 class="name"></h2></div>' +
+        '<p class="when"></p>' +
+        (usesShortcutVolume(cue)
+          ? '<div class="vol"><span class="lab">Volume set automatically</span><span class="val">' + (cue.v||0) + '</span></div>'
+          : '<div class="vol"><span class="lab">Set volume to</span><span class="val">' + (cue.v||0) + '%</span></div>') +
+        '<button class="go">' + label + '</button>' +
+        (target ? '' : '<p class="hint">No link saved for this cue yet \u2014 tap Edit at the top.</p>') +
+        (cue.m === "s" ? '' : '<p class="hint">Spotify opens on the right track. Press play there.</p>');
+      el.querySelector(".name").textContent = cue.n || "Untitled cue";
+      el.querySelector(".when").textContent = cue.w || "";
+      el.querySelector(".go").addEventListener("click", () => play(i));
+    } else {
+      el.innerHTML =
+        '<div class="row"><span class="num">' + (i+1) + '</span>' +
+        '<h2 class="name"></h2>' +
+        '<span class="tag">' + (state === "done" ? "played" : (cue.v||0) + "%") + '</span></div>';
+      el.querySelector(".name").textContent = cue.n || "Untitled cue";
+      if(state === "done") el.addEventListener("click", () => { done = i; renderRun(); });
+    }
+    list.appendChild(el);
+  });
+}
+
+function play(i){
+  const cue = cfg.c[i];
+  const target = cueTarget(cue);
+  if(!target){ toast("Add a link for this cue first"); return; }
+  if(!rehearse){ done = i + 1; renderRun(); }
+  window.location.href = target;
+}
+
+function undo(){ if(done > 0){ done--; renderRun(); toast("Moved back a cue"); } }
+function resetProgress(){ done = 0; renderRun(); toast("Back to the first cue"); }
+function toggleRehearse(){
+  rehearse = !rehearse;
+  const b = document.getElementById("rehearseBtn");
+  b.textContent = "Rehearse: " + (rehearse ? "on" : "off");
+  b.classList.toggle("on", rehearse);
+  toast(rehearse ? "Cues won't be marked as played" : "Rehearse off");
+}
+
+/* ---------------- settings view ---------------- */
+function renderSettings(){
+  document.getElementById("titleIn").value = cfg.t || "";
+  document.getElementById("shortcutIn").value = cfg.s || "";
+  const wrap = document.getElementById("cueEditors");
+  wrap.innerHTML = "";
+
+  cfg.c.forEach((cue, i) => {
+    const card = document.createElement("div");
+    card.className = "card";
+    card.innerHTML =
+      '<div class="cardtop"><span class="n">Cue ' + (i+1) + '</span>' +
+        '<span class="tools">' +
+          '<button data-a="up" title="Move up">\u2191</button>' +
+          '<button data-a="down" title="Move down">\u2193</button>' +
+          '<button data-a="del" title="Delete">\u2715</button>' +
+        '</span></div>' +
+      '<div class="field"><label>Name</label><input data-f="n" type="text" placeholder="Entrance"></div>' +
+      '<div class="field"><label>When to press it</label><textarea data-f="w" placeholder="Start when the registrar nods."></textarea></div>' +
+      '<div class="field"><label>Mode</label><select data-f="m">' +
+        '<option value="v">Open Spotify (volume via shortcut)</option>' +
+        '<option value="m">Open Spotify (set volume by hand)</option>' +
+        '<option value="s">Run a named shortcut</option>' +
+      '</select></div>' +
+      '<div class="two">' +
+        '<div class="field"><label data-l="u">Spotify link</label><input data-f="u" type="text" placeholder="https://open.spotify.com/track/..."></div>' +
+        '<div class="field" style="max-width:110px"><label>Volume %</label><input data-f="v" type="number" min="0" max="100" inputmode="numeric"></div>' +
+      '</div>' +
+      '<button class="wide" data-a="test" style="margin-bottom:0">Test this cue</button>';
+
+    card.querySelector('[data-f="n"]').value = cue.n || "";
+    card.querySelector('[data-f="w"]').value = cue.w || "";
+    card.querySelector('[data-f="u"]').value = cue.u || "";
+    card.querySelector('[data-f="v"]').value = cue.v ?? 50;
+    card.querySelector('[data-f="m"]').value = cue.m || "v";
+    syncLabel(card);
+
+    card.querySelectorAll("[data-f]").forEach(inp => {
+      inp.addEventListener("input", () => {
+        const f = inp.getAttribute("data-f");
+        cfg.c[i][f] = f === "v" ? (parseInt(inp.value,10) || 0) : inp.value;
+        if(f === "m") syncLabel(card);
+      });
+    });
+    card.querySelectorAll("[data-a]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const a = btn.getAttribute("data-a");
+        if(a === "up" && i > 0){ [cfg.c[i-1], cfg.c[i]] = [cfg.c[i], cfg.c[i-1]]; renderSettings(); }
+        if(a === "down" && i < cfg.c.length-1){ [cfg.c[i+1], cfg.c[i]] = [cfg.c[i], cfg.c[i+1]]; renderSettings(); }
+        if(a === "del"){ cfg.c.splice(i,1); renderSettings(); }
+        if(a === "test"){
+          const t = cueTarget(cfg.c[i]);
+          if(t) window.location.href = t; else toast("Add a link first");
+        }
+      });
+    });
+    wrap.appendChild(card);
+  });
+}
+function syncLabel(card){
+  const mode = card.querySelector('[data-f="m"]').value;
+  const lab = card.querySelector('[data-l="u"]');
+  const inp = card.querySelector('[data-f="u"]');
+  if(mode === "s"){ lab.textContent = "Shortcut name"; inp.placeholder = "Hymn Two"; }
+  else { lab.textContent = "Spotify link"; inp.placeholder = "https://open.spotify.com/track/..."; }
+}
+function addCue(){
+  cfg.c.push({n:"New cue", w:"", u:"", v:50, m:"v"});
+  renderSettings();
+}
+function saveConfig(){
+  cfg.t = document.getElementById("titleIn").value;
+  cfg.s = document.getElementById("shortcutIn").value;
+  history.replaceState(null, "", "#" + encode(cfg));
+  toast("Saved to this page's address");
+}
+
+/* ---------------- view switching ---------------- */
+function showSettings(){
+  renderSettings();
+  document.getElementById("run").classList.add("hidden");
+  document.getElementById("settings").classList.remove("hidden");
+  document.getElementById("bottomBar").classList.add("hidden");
+  window.scrollTo(0,0);
+}
+function showRun(){
+  saveConfig();
+  renderRun();
+  document.getElementById("settings").classList.add("hidden");
+  document.getElementById("run").classList.remove("hidden");
+  document.getElementById("bottomBar").classList.remove("hidden");
+  window.scrollTo(0,0);
+}
+let toastTimer;
+function toast(msg){
+  const t = document.getElementById("toast");
+  t.textContent = msg; t.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove("show"), 1900);
+}
+
+/* also pick up a config pasted into the address bar later */
+window.addEventListener("hashchange", () => { cfg = loadConfig(); done = 0; renderRun(); });
+
+/* ---------------- offline ---------------- */
+function setOfflineState(msg, good){
+  const el = document.getElementById("offlineState");
+  if(el){ el.textContent = msg; el.style.color = good ? "var(--ok)" : "var(--muted)"; }
+}
+if("serviceWorker" in navigator){
+  navigator.serviceWorker.register("sw.js")
+    .then(() => navigator.serviceWorker.ready)
+    .then(() => setOfflineState("Stored on this phone. It will open with no signal.", true))
+    .catch(() => setOfflineState("Couldn't store it offline. Needs to be opened over https.", false));
+} else {
+  setOfflineState("This browser can't store the app offline. Use Safari.", false);
+}
+
+renderRun();
+</script>
+</body>
+</html>
