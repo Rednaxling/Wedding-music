@@ -1,5 +1,5 @@
 /* Caches the whole app on first visit so it opens with no signal at all. */
-const CACHE = "cues-v1";
+const CACHE = "cues-v2";
 const FILES = [
   "./",
   "./index.html",

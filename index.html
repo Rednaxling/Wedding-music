@@ -228,9 +228,10 @@
     <summary>The song that isn't on Spotify</summary>
     <ol>
       <li>Put the audio file in the Files app, under On My iPhone so it needs no signal.</li>
-      <li>New shortcut, named e.g. <code>Hymn Two</code>: add <strong>Set Volume</strong>, then <strong>File</strong> (tap it and browse to the song), then <strong>Play Sound</strong>.</li>
-      <li>In Play Sound, tap the Sound File field and choose the magic variable <em>File</em> from the step above.</li>
-      <li>Set this cue's Mode to "Run a named shortcut" and put the shortcut's name in the Link box.</li>
+      <li>New shortcut, named e.g. <code>Hymn Two</code>. Add <strong>Calculate</strong>: Shortcut Input ÷ 100.</li>
+      <li>Add <strong>Set Volume</strong> and insert the Calculate result.</li>
+      <li>Add <strong>File</strong> and browse to the song, then <strong>Play Sound</strong> with the File variable.</li>
+      <li>Set this cue's Mode to "Run a named shortcut" and put the shortcut's name in the Link box. The volume above is sent to it.</li>
     </ol>
     <p>Once it starts, stopping it early is awkward, so let this one play to the end.</p>
   </details>
@@ -318,7 +319,8 @@ function toAppLink(raw){
 function cueTarget(cue){
   const vol = Math.max(0, Math.min(100, parseInt(cue.v, 10) || 0));
   if(cue.m === "s"){
-    return "shortcuts://x-callback-url/run-shortcut?name=" + encodeURIComponent((cue.u||"").trim());
+    return "shortcuts://x-callback-url/run-shortcut?name=" + encodeURIComponent((cue.u||"").trim())
+         + "&input=text&text=" + encodeURIComponent(vol);
   }
   const link = toAppLink(cue.u);
   if(!link) return "";
@@ -329,6 +331,7 @@ function cueTarget(cue){
   return link;
 }
 function usesShortcutVolume(cue){
+  if(cue.m === "s") return !!(cue.u||"").trim();
   return cue.m === "v" && !!(cfg.s||"").trim() && !!toAppLink(cue.u);
 }
 
