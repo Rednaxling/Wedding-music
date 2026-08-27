@@ -1,5 +1,5 @@
 /* Caches the whole app on first visit so it opens with no signal at all. */
-const CACHE = "cues-v2";
+const CACHE = "cues-v4";
 const FILES = [
   "./",
   "./index.html",
@@ -13,7 +13,11 @@ const FILES = [
 self.addEventListener("install", e => {
   e.waitUntil(
     caches.open(CACHE)
-      .then(c => c.addAll(FILES))
+      .then(c => c.addAll(FILES).then(() =>
+        /* Optional: the published settings file may not exist yet. A failure
+           here must not stop the app being stored offline. */
+        c.add("./cues.json").catch(() => {})
+      ))
       .then(() => self.skipWaiting())
   );
 });

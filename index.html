@@ -198,8 +198,26 @@
   <button class="wide" onclick="addCue()">+ Add a cue</button>
 
   <button class="save" onclick="saveConfig()">Save</button>
-  <p class="note" style="text-align:center;margin-top:10px">Saving updates this page's address. Add it to your Home Screen <em>after</em> saving so the settings come with it.</p>
+  <p class="note" style="text-align:center;margin-top:10px">Settings are kept on this phone, so you can edit them from the Home Screen icon at any time. They're also written into the page's address, which is how you'd move them to another phone.</p>
   <p class="note" style="text-align:center;margin-top:14px" id="offlineState">Checking whether the app is stored on this phone…</p>
+
+  <h2 class="sechead">Back up your settings</h2>
+  <p class="note" style="margin-top:-4px">Publish a copy as <code>cues.json</code> in the same folder as this page. Any phone that opens the app fresh will pick it up.</p>
+  <div class="two" style="margin-top:12px">
+    <button class="wide" style="margin-bottom:0" onclick="copySettings()">Copy settings</button>
+    <button class="wide" style="margin-bottom:0" onclick="downloadSettings()">Save as a file</button>
+  </div>
+
+  <details>
+    <summary>Putting it on GitHub</summary>
+    <ol>
+      <li>Tap Save above, then Copy settings.</li>
+      <li>In your repository, tap Add file → Create new file.</li>
+      <li>Name it exactly <code>cues.json</code> and paste into the box below the name.</li>
+      <li>Commit it. Give it a minute, then open the app on the other phone.</li>
+    </ol>
+    <p>To change it later, open cues.json on GitHub, tap the pencil, and paste a fresh copy over the old one.</p>
+  </details>
 
   <h2 class="sechead">How to set it up</h2>
 
@@ -242,6 +260,7 @@
       <li>Finish your settings above and tap Save.</li>
       <li>In Safari, tap the share button → Add to Home Screen.</li>
       <li>Open it once from the new icon while you still have wifi. That stores the whole app on the phone.</li>
+      <li>From then on you can edit the settings from the icon itself and they will stick.</li>
       <li>Turn on Airplane Mode and open it again. If it still works, it will work at the venue.</li>
     </ol>
     <p>If you change the settings later, save and then add it to the Home Screen again — the icon remembers the settings from the moment it was added.</p>
@@ -297,15 +316,48 @@ function decode(s){
   const bytes = Uint8Array.from(bin, ch => ch.charCodeAt(0));
   return JSON.parse(new TextDecoder().decode(bytes));
 }
+let usedDefaults = false;
 function loadConfig(){
   const h = location.hash.slice(1);
+  let fromHash = null;
   if(h){
     try{
       const o = decode(h);
-      if(o && Array.isArray(o.c)) return o;
-    }catch(e){ /* fall through to defaults */ }
+      if(o && Array.isArray(o.c)) fromHash = o;
+    }catch(e){ /* ignore a damaged link */ }
   }
+  /* A saved copy on the phone wins, unless the address carries a newer link
+     than the one that copy came from — that means a fresh link was opened. */
+  try{
+    const raw = localStorage.getItem("cues");
+    if(raw){
+      const saved = JSON.parse(raw);
+      if(saved && Array.isArray(saved.c)){
+        if(fromHash && h !== localStorage.getItem("cuesHash")) return fromHash;
+        return saved;
+      }
+    }
+  }catch(e){ /* storage unavailable, fall back to the link */ }
+  if(fromHash) return fromHash;
+  usedDefaults = true;
   return JSON.parse(JSON.stringify(DEFAULT));
+}
+
+/* On a phone with nothing saved and no settings in the address, fall back to
+   cues.json sitting next to this page — the copy kept in the repository. */
+function loadSharedFile(){
+  if(!usedDefaults) return;
+  fetch("cues.json", { cache: "no-cache" })
+    .then(r => r.ok ? r.json() : null)
+    .then(o => {
+      if(o && Array.isArray(o.c)){
+        cfg = o;
+        usedDefaults = false;
+        renderRun();
+        toast("Loaded the saved settings");
+      }
+    })
+    .catch(() => { /* no file published, keep the built-in defaults */ });
 }
 
 /* ---------------- links ---------------- */
@@ -472,8 +524,15 @@ function addCue(){
 function saveConfig(){
   cfg.t = document.getElementById("titleIn").value;
   cfg.s = document.getElementById("shortcutIn").value;
-  history.replaceState(null, "", "#" + encode(cfg));
-  toast("Saved to this page's address");
+  const h = encode(cfg);
+  history.replaceState(null, "", "#" + h);
+  let stored = false;
+  try{
+    localStorage.setItem("cues", JSON.stringify(cfg));
+    localStorage.setItem("cuesHash", h);
+    stored = true;
+  }catch(e){ /* private browsing or storage full */ }
+  toast(stored ? "Saved on this phone" : "Saved to this page's address only");
 }
 
 /* ---------------- view switching ---------------- */
@@ -503,6 +562,39 @@ function toast(msg){
 /* also pick up a config pasted into the address bar later */
 window.addEventListener("hashchange", () => { cfg = loadConfig(); done = 0; renderRun(); });
 
+function settingsText(){
+  cfg.t = document.getElementById("titleIn").value;
+  cfg.s = document.getElementById("shortcutIn").value;
+  return JSON.stringify(cfg, null, 2);
+}
+function copySettings(){
+  const text = settingsText();
+  const done = () => toast("Copied. Paste it into cues.json");
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(text).then(done).catch(() => fallbackCopy(text, done));
+  } else {
+    fallbackCopy(text, done);
+  }
+}
+function fallbackCopy(text, done){
+  const ta = document.createElement("textarea");
+  ta.value = text;
+  ta.style.position = "fixed"; ta.style.opacity = "0";
+  document.body.appendChild(ta);
+  ta.focus(); ta.select(); ta.setSelectionRange(0, text.length);
+  try{ document.execCommand("copy"); done(); }
+  catch(e){ toast("Couldn't copy \u2014 use Save as a file"); }
+  document.body.removeChild(ta);
+}
+function downloadSettings(){
+  const blob = new Blob([settingsText()], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = "cues.json";
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+}
+
 /* ---------------- offline ---------------- */
 function setOfflineState(msg, good){
   const el = document.getElementById("offlineState");
@@ -518,6 +610,7 @@ if("serviceWorker" in navigator){
 }
 
 renderRun();
+loadSharedFile();
 </script>
 </body>
 </html>
