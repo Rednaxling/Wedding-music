@@ -1,0 +1,41 @@
+{
+  "t": "Our wedding",
+  "s": "Wedding Cue",
+  "c": [
+    {
+      "n": "Waiting music",
+      "w": "Start as soon as the guests begin arriving.",
+      "u": "https://open.spotify.com/playlist/37i9dQZF1E4stkH44ckflo?si=uhSFlSojQQWoUBTi4ra-bA&utm_source=copy-link&pi=b0DphP5URJekg",
+      "v": 25,
+      "m": "v"
+    },
+    {
+      "n": "Entrance",
+      "w": "Start when Nick announces entry. Let it play until we reach the front, then fade out by reducing phone volume to zero!",
+      "u": "https://open.spotify.com/playlist/2RcMQEzVTD9ButNxSDb3tb?si=tC6PoBFwSR2ZTrovckgM-Q&utm_source=copy-link&pi=FYOHIhe4RzSRQ",
+      "v": 80,
+      "m": "v"
+    },
+    {
+      "n": "Waterloo Sunset",
+      "w": "Start once everyone is standing for the first song.",
+      "u": "https://open.spotify.com/playlist/4xf5EYTMT7jytQgBNqD2L6?si=ueKKicvmQL-a66ZE0k7dgA&utm_source=copy-link&pi=_g6YCA69SV2bD",
+      "v": 60,
+      "m": "v"
+    },
+    {
+      "n": "Like A Prayer",
+      "w": "Start once everyone is standing. WILL NOT OPEN IN SPOTIFY - Press “OK” on popup to start playing ",
+      "u": "Hymn Two",
+      "v": 70,
+      "m": "s"
+    },
+    {
+      "n": "Exit",
+      "w": "Start playlist as we begin to walk out ",
+      "u": "https://open.spotify.com/playlist/5of6gbxjxuFjoWJLlf8iYk?si=PoHPGgF0Q2i_byymU5_e2Q&utm_source=copy-link&pi=pK9Hi28_R3aO_",
+      "v": 65,
+      "m": "v"
+    }
+  ]
+}
