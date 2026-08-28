@@ -170,6 +170,7 @@
       <span class="eyebrow">Order of music</span>
       <h1 class="title" id="runTitle">Our wedding</h1>
       <p class="note" style="margin:6px 0 0">Tap any cue to jump to it.</p>
+      <p class="note" id="lastStarted" style="margin:4px 0 0;color:var(--brass);display:none"></p>
     </div>
     <button class="linkbtn" onclick="showSettings()">Edit</button>
   </div>
@@ -180,7 +181,7 @@
 <main id="settings" class="hidden">
   <div class="top">
     <div>
-      <span class="eyebrow">Set up</span>
+      <span class="eyebrow">Set up &middot; version <span id="verNum">?</span></span>
       <h1 class="title">Cues &amp; volumes</h1>
     </div>
     <button class="linkbtn" onclick="showRun()">Done</button>
@@ -210,6 +211,19 @@
     <button class="wide" style="margin-bottom:0" onclick="copySettings()">Copy settings</button>
     <button class="wide" style="margin-bottom:0" onclick="downloadSettings()">Save as a file</button>
   </div>
+
+  <details>
+    <summary>The fade-out step</summary>
+    <p>A cue with Mode "Fade out what's playing" doesn't start anything — it fades whatever is on down to silence over about six seconds, then pauses. It sends the volume of the last song this app started, so the fade begins from the right level. The Volume % box is only the fallback used if no song has been started yet.</p>
+    <p>Build a shortcut named <code>Fade Out</code> (or whatever you put in the box):</p>
+    <ol>
+      <li><strong>Calculate</strong> — Shortcut Input ÷ 100. Call this V.</li>
+      <li><strong>Calculate</strong> — V ÷ 6. Call this S.</li>
+      <li><strong>Repeat</strong> 6 times: <strong>Calculate</strong> V − (Repeat Index × S), then <strong>Set Volume</strong> to that result, then <strong>Wait</strong> 1 second.</li>
+      <li>After the repeat: <strong>Play/Pause</strong> set to Pause, then <strong>Set Volume</strong> back to V.</li>
+    </ol>
+    <p>Insert these steps wherever a graceful stop might be needed — after the entrance song, for instance. Skipping past one is fine: just tap the next real cue.</p>
+  </details>
 
   <details>
     <summary>Putting it on GitHub</summary>
@@ -291,7 +305,7 @@
 
 <script>
 /* ---------------- default configuration ---------------- */
-const APP_VERSION = 7;
+const APP_VERSION = 9;
 const DEFAULT = {
   t: "Our wedding",
   s: "Wedding Cue",
@@ -372,8 +386,17 @@ function toAppLink(raw){
   if(m) return "spotify:" + m[1] + ":" + m[2];
   return s;
 }
+let lastVol = null;   /* volume of the last song cue started, for the fade */
+let lastStart = null; /* what it was and when */
+function fadeFromVol(cue){
+  return lastVol != null ? lastVol : Math.max(0, Math.min(100, parseInt(cue.v, 10) || 0));
+}
 function cueTarget(cue){
   const vol = Math.max(0, Math.min(100, parseInt(cue.v, 10) || 0));
+  if(cue.m === "f"){
+    return "shortcuts://x-callback-url/run-shortcut?name=" + encodeURIComponent(((cue.u||"").trim()) || "Fade Out")
+         + "&input=text&text=" + encodeURIComponent(fadeFromVol(cue));
+  }
   if(cue.m === "s"){
     return "shortcuts://x-callback-url/run-shortcut?name=" + encodeURIComponent((cue.u||"").trim())
          + "&input=text&text=" + encodeURIComponent(vol);
@@ -387,6 +410,7 @@ function cueTarget(cue){
   return link;
 }
 function usesShortcutVolume(cue){
+  if(cue.m === "f") return true;
   if(cue.m === "s") return !!(cue.u||"").trim();
   return cue.m === "v" && !!(cfg.s||"").trim() && !!toAppLink(cue.u);
 }
@@ -394,6 +418,11 @@ function usesShortcutVolume(cue){
 /* ---------------- run view ---------------- */
 function renderRun(){
   document.getElementById("runTitle").textContent = cfg.t || "Our wedding";
+  const ls = document.getElementById("lastStarted");
+  if(ls){
+    if(lastStart){ ls.textContent = "Last started: " + lastStart.n + " at " + lastStart.t; ls.style.display = ""; }
+    else ls.style.display = "none";
+  }
   const list = document.getElementById("cueList");
   list.innerHTML = "";
 
@@ -411,17 +440,26 @@ function renderRun(){
 
     if(state === "current"){
       const target = cueTarget(cue);
-      const label = cue.m === "s" ? "Play" : "Open in Spotify";
+      const label = cue.m === "f" ? "Fade out" : (cue.m === "s" ? "Play" : "Open in Spotify");
+      let volLine;
+      if(cue.m === "f"){
+        volLine = '<div class="vol"><span class="lab">Fades down from</span><span class="val">' + fadeFromVol(cue) + '%</span></div>';
+      } else if(usesShortcutVolume(cue)){
+        volLine = '<div class="vol"><span class="lab">Volume set automatically</span><span class="val">' + (cue.v||0) + '</span></div>';
+      } else {
+        volLine = '<div class="vol"><span class="lab">Set volume to</span><span class="val">' + (cue.v||0) + '%</span></div>';
+      }
+      let hint = '';
+      if(!target) hint = '<p class="hint">No link saved for this cue yet \u2014 tap Edit at the top.</p>';
+      else if(cue.m === "f") hint = '<p class="hint">Takes about six seconds, then everything is quiet. Only press it if something needs fading.</p>';
+      else if(cue.m !== "s") hint = '<p class="hint">Spotify opens on the right track. Press play there.</p>';
       el.innerHTML =
         '<span class="now">Up next</span>' +
         '<div class="row"><span class="num">' + (i+1) + '</span><h2 class="name"></h2></div>' +
         '<p class="when"></p>' +
-        (usesShortcutVolume(cue)
-          ? '<div class="vol"><span class="lab">Volume set automatically</span><span class="val">' + (cue.v||0) + '</span></div>'
-          : '<div class="vol"><span class="lab">Set volume to</span><span class="val">' + (cue.v||0) + '%</span></div>') +
+        volLine +
         '<button class="go">' + label + '</button>' +
-        (target ? '' : '<p class="hint">No link saved for this cue yet \u2014 tap Edit at the top.</p>') +
-        (cue.m === "s" ? '' : '<p class="hint">Spotify opens on the right track. Press play there.</p>');
+        hint;
       el.querySelector(".name").textContent = cue.n || "Untitled cue";
       el.querySelector(".when").textContent = cue.w || "";
       el.querySelector(".go").addEventListener("click", () => play(i));
@@ -429,7 +467,7 @@ function renderRun(){
       el.innerHTML =
         '<div class="row"><span class="num">' + (i+1) + '</span>' +
         '<h2 class="name"></h2>' +
-        '<span class="tag">' + (state === "done" ? "\u2713 " : "") + (cue.v||0) + '%</span></div>';
+        '<span class="tag">' + (state === "done" ? "\u2713 " : "") + (cue.m === "f" ? "fade" : (cue.v||0) + "%") + '</span></div>';
       el.querySelector(".name").textContent = cue.n || "Untitled cue";
       el.setAttribute("role", "button");
       el.tabIndex = 0;
@@ -448,7 +486,15 @@ function play(i){
   const cue = cfg.c[i];
   const target = cueTarget(cue);
   if(!target){ toast("Add a link for this cue first"); return; }
-  if(!rehearse){ done = i + 1; renderRun(); }
+  if(!rehearse){
+    done = i + 1;
+    if(cue.m !== "f"){
+      lastVol = Math.max(0, Math.min(100, parseInt(cue.v, 10) || 0));
+      lastStart = { n: cue.n || "Untitled cue",
+                    t: new Date().toLocaleTimeString([], {hour:"2-digit", minute:"2-digit"}) };
+    }
+    renderRun();
+  }
   window.location.href = target;
 }
 
@@ -485,6 +531,7 @@ function renderSettings(){
         '<option value="v">Open Spotify (volume via shortcut)</option>' +
         '<option value="m">Open Spotify (set volume by hand)</option>' +
         '<option value="s">Run a named shortcut</option>' +
+        '<option value="f">Fade out what\u2019s playing</option>' +
       '</select></div>' +
       '<div class="two">' +
         '<div class="field"><label data-l="u">Spotify link</label><input data-f="u" type="text" placeholder="https://open.spotify.com/track/..."></div>' +
@@ -526,6 +573,7 @@ function syncLabel(card){
   const lab = card.querySelector('[data-l="u"]');
   const inp = card.querySelector('[data-f="u"]');
   if(mode === "s"){ lab.textContent = "Shortcut name"; inp.placeholder = "Hymn Two"; }
+  else if(mode === "f"){ lab.textContent = "Fade shortcut name"; inp.placeholder = "Fade Out"; }
   else { lab.textContent = "Spotify link"; inp.placeholder = "https://open.spotify.com/track/..."; }
 }
 function addCue(){
@@ -607,6 +655,10 @@ function downloadSettings(){
 }
 
 /* ---------------- offline ---------------- */
+(function(){
+  const v = document.getElementById("verNum");
+  if(v) v.textContent = APP_VERSION;
+})();
 function setOfflineState(msg, good){
   const el = document.getElementById("offlineState");
   if(el){ el.textContent = msg; el.style.color = good ? "var(--ok)" : "var(--muted)"; }
