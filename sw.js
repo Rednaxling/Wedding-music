@@ -1,5 +1,5 @@
 /* Caches the whole app on first visit so it opens with no signal at all. */
-const CACHE = "cues-v9";
+const CACHE = "cues-v10";
 const FILES = [
   "./",
   "./index.html",
@@ -34,6 +34,24 @@ self.addEventListener("activate", e => {
    than being up to date. */
 self.addEventListener("fetch", e => {
   if (e.request.method !== "GET") return;
+
+  /* The published settings file must always be fresh when it is asked for,
+     so try the network first and only fall back to the stored copy. */
+  if (e.request.url.indexOf("cues.json") !== -1) {
+    e.respondWith(
+      fetch(e.request)
+        .then(res => {
+          if (res && res.status === 200) {
+            const copy = res.clone();
+            caches.open(CACHE).then(c => c.put("./cues.json", copy));
+          }
+          return res;
+        })
+        .catch(() => caches.match("./cues.json"))
+    );
+    return;
+  }
+
   e.respondWith(
     caches.match(e.request, { ignoreSearch: true }).then(hit => {
       if (hit) return hit;

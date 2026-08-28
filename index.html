@@ -211,6 +211,8 @@
     <button class="wide" style="margin-bottom:0" onclick="copySettings()">Copy settings</button>
     <button class="wide" style="margin-bottom:0" onclick="downloadSettings()">Save as a file</button>
   </div>
+  <button class="wide" style="margin-top:10px;margin-bottom:0" onclick="pullPublished()">Load published settings</button>
+  <p class="note" style="margin-top:8px">Pulling replaces everything on this phone with the copy in <code>cues.json</code>. Save first if this phone has changes worth keeping.</p>
 
   <details>
     <summary>The fade-out step</summary>
@@ -305,7 +307,7 @@
 
 <script>
 /* ---------------- default configuration ---------------- */
-const APP_VERSION = 9;
+const APP_VERSION = 10;
 const DEFAULT = {
   t: "Our wedding",
   s: "Wedding Cue",
@@ -620,6 +622,28 @@ function toast(msg){
 
 /* also pick up a config pasted into the address bar later */
 window.addEventListener("hashchange", () => { cfg = loadConfig(); done = 0; renderRun(); });
+
+function pullPublished(){
+  toast("Fetching\u2026");
+  fetch("cues.json?t=" + Date.now(), { cache: "reload" })
+    .then(r => {
+      if(!r.ok) throw new Error("not found");
+      return r.json();
+    })
+    .then(o => {
+      if(!o || !Array.isArray(o.c)) throw new Error("wrong shape");
+      cfg = o;
+      const h = encode(cfg);
+      history.replaceState(null, "", "#" + h);
+      try{
+        localStorage.setItem("cues", JSON.stringify(cfg));
+        localStorage.setItem("cuesHash", h);
+      }catch(e){ /* storage unavailable */ }
+      renderSettings();
+      toast("Loaded " + cfg.c.length + " cues from GitHub");
+    })
+    .catch(() => toast("Couldn\u2019t load cues.json \u2014 check it's published"));
+}
 
 function settingsText(){
   cfg.t = document.getElementById("titleIn").value;
