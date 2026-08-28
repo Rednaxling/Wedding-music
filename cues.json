@@ -10,11 +10,25 @@
       "m": "v"
     },
     {
+      "n": "Fade out playlist",
+      "w": "Fade out when Nick starts talking",
+      "u": "Fade Out",
+      "v": 25,
+      "m": "f"
+    },
+    {
       "n": "Entrance",
       "w": "Start when Nick announces entry. Let it play until we reach the front, then fade out by reducing phone volume to zero!",
       "u": "https://open.spotify.com/playlist/2RcMQEzVTD9ButNxSDb3tb?si=tC6PoBFwSR2ZTrovckgM-Q&utm_source=copy-link&pi=FYOHIhe4RzSRQ",
       "v": 80,
       "m": "v"
+    },
+    {
+      "n": "Fade Out Entrance",
+      "w": "Press when Alex and Mabel get to the front",
+      "u": "",
+      "v": 80,
+      "m": "f"
     },
     {
       "n": "Waterloo Sunset",
