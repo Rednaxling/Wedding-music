@@ -69,6 +69,8 @@
   .cue.done{opacity:.4}
   .cue.done .name{text-decoration:line-through;text-decoration-color:var(--brass-dim)}
   .cue.pending{opacity:.62}
+  .cue[role="button"]{cursor:pointer}
+  .cue[role="button"]:active{opacity:.95;border-color:var(--brass-dim)}
 
   /* the one cue that matters right now */
   .cue.current{
@@ -167,6 +169,7 @@
     <div>
       <span class="eyebrow">Order of music</span>
       <h1 class="title" id="runTitle">Our wedding</h1>
+      <p class="note" style="margin:6px 0 0">Tap any cue to jump to it.</p>
     </div>
     <button class="linkbtn" onclick="showSettings()">Edit</button>
   </div>
@@ -425,9 +428,16 @@ function renderRun(){
       el.innerHTML =
         '<div class="row"><span class="num">' + (i+1) + '</span>' +
         '<h2 class="name"></h2>' +
-        '<span class="tag">' + (state === "done" ? "played" : (cue.v||0) + "%") + '</span></div>';
+        '<span class="tag">' + (state === "done" ? "\u2713 " : "") + (cue.v||0) + '%</span></div>';
       el.querySelector(".name").textContent = cue.n || "Untitled cue";
-      if(state === "done") el.addEventListener("click", () => { done = i; renderRun(); });
+      el.setAttribute("role", "button");
+      el.tabIndex = 0;
+      el.setAttribute("aria-label", "Go to cue " + (i+1) + ", " + (cue.n || "untitled"));
+      const jump = () => { done = i; renderRun(); };
+      el.addEventListener("click", jump);
+      el.addEventListener("keydown", ev => {
+        if(ev.key === "Enter" || ev.key === " "){ ev.preventDefault(); jump(); }
+      });
     }
     list.appendChild(el);
   });
