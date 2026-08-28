@@ -291,6 +291,7 @@
 
 <script>
 /* ---------------- default configuration ---------------- */
+const APP_VERSION = 7;
 const DEFAULT = {
   t: "Our wedding",
   s: "Wedding Cue",
@@ -303,6 +304,7 @@ const DEFAULT = {
   ]
 };
 
+let usedDefaults = false;
 let cfg = loadConfig();
 let done = 0;
 let rehearse = false;
@@ -319,7 +321,6 @@ function decode(s){
   const bytes = Uint8Array.from(bin, ch => ch.charCodeAt(0));
   return JSON.parse(new TextDecoder().decode(bytes));
 }
-let usedDefaults = false;
 function loadConfig(){
   const h = location.hash.slice(1);
   let fromHash = null;
@@ -612,11 +613,25 @@ function setOfflineState(msg, good){
 }
 if("serviceWorker" in navigator){
   navigator.serviceWorker.register("sw.js")
-    .then(() => navigator.serviceWorker.ready)
-    .then(() => setOfflineState("Stored on this phone. It will open with no signal.", true))
-    .catch(() => setOfflineState("Couldn't store it offline. Needs to be opened over https.", false));
+    .then(reg => {
+      reg.update();
+      /* If a newer copy has been published, take it straight away rather than
+         waiting for every tab to close. */
+      reg.addEventListener("updatefound", () => {
+        const fresh = reg.installing;
+        if(!fresh) return;
+        fresh.addEventListener("statechange", () => {
+          if(fresh.state === "installed" && navigator.serviceWorker.controller){
+            location.reload();
+          }
+        });
+      });
+      return navigator.serviceWorker.ready;
+    })
+    .then(() => setOfflineState("Version " + APP_VERSION + ". Stored on this phone, opens with no signal.", true))
+    .catch(() => setOfflineState("Version " + APP_VERSION + ". Couldn't store it offline \u2014 needs to be served over https.", false));
 } else {
-  setOfflineState("This browser can't store the app offline. Use Safari.", false);
+  setOfflineState("Version " + APP_VERSION + ". This browser can't store the app offline. Use Safari.", false);
 }
 
 renderRun();
